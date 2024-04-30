@@ -1,113 +1,337 @@
 package:
   name: gdal
-  version: 3.8.3
-  tag:
-    - library
+  version: 3.8.5
+  top-level:
+    - PUT_TOP_LEVEL_IMPORT_NAMES_HERE
 source:
-  url: https://github.com/OSGeo/gdal/releases/download/v3.8.3/gdal-3.8.3.tar.gz
-  sha256: f7a30387a8239e9da26200f787a02136df2ee6473e86b36d05ad682761a049ea
-requirements:
-  host:
-    - libtiff
-    - libproj
-    - libiconv
-    - geos
-  run:
-    - geos
+  url: https://files.pythonhosted.org/packages/8b/e0/4c1b601af568b75c77ca4b7ebf35bcc04b4c387a2a91645b6e2a4cf0c59e/GDAL-3.8.5.tar.gz
+  sha256: ad8addd58ba9c62aefc7f65d345c168736798f137e5c8f247af76fcf4862d371
+
 
 build:
-  type: shared_library
-  script: |
-    export EMSCRIPTEN_SYSROOT=$(em-config CACHE)/sysroot
-    export EMSCRIPTEN_INCLUDE=$EMSCRIPTEN_SYSROOT/include
-    export EMSCRIPTEN_BIN=$EMSCRIPTEN_SYSROOT/bin
-    export EMSCRIPTEN_LIB=$EMSCRIPTEN_SYSROOT/lib/wasm32-emscripten/pic
+  number: 2
+  skip_compile_pyc:
+    - share/bash-completion/completions/*.py
 
-    embuilder build zlib --pic
-    embuilder build libjpeg --pic
-    embuilder build libpng --pic
-    embuilder build sqlite3 --pic
+requirements:
+  build:
+    - cmake
+    - pkg-config >=0.21  # [not win]
+    - make  # [not win]
+    - ninja  # [win]
+    - {{ compiler('c') }}
+    - {{ stdlib("c") }}
+    - {{ compiler('cxx') }}
+    - swig
+  host:
+    - blosc
+    - cfitsio
+    - expat
+    - freexl
+    - geos
+    - geotiff
+    - giflib  # [not win]
+    - hdf4
+    - hdf5
+    - libjpeg-turbo
+    - json-c  # [not win]
+    - kealib
+    - lerc
+    - libarchive
+    - libaec  # for GRIB driver
+    - libcurl
+    - libdeflate
+    - libiconv
+    - libkml
+    - libnetcdf
+    - libpng
+    - libpq
+    - libspatialite
+    - libtiff
+    - libuuid  # [linux]
+    - libwebp-base
+    - libxml2
+    - lz4-c
+    - openjpeg
+    - openssl
+    - pcre2
+    - poppler
+    - postgresql
+    - proj
+    # qhull disabled because of https://github.com/conda-forge/qgis-feedstock/issues/284#issuecomment-1356490896
+    # - qhull
+    - sqlite
+    - tiledb
+    - xerces-c
+    - xz
+    - zlib
+    - zstd
 
-    # LLVM bundled with Emscripten >= 3.1.47 has a parser bug regarding
-    # the comment. Until the bug is fixed, this is a temporary workaround to avoid the bug (removing comments).
-    # See: https://github.com/llvm/llvm-project/issues/67979
-    sed -i -e 's|//.*||' -e 's|/\*.*\*/||' alg/gdalgeoloc.cpp
-    sed -i -e 's|//.*||' -e 's|/\*.*\*/||' frmts/pds/pds4vector.cpp
+outputs:
+  - name: libgdal
+    script: install_lib.sh  # [unix]
+    script: install_lib.bat  # [win]
+    build:
+      run_exports:
+        # no idea, going with minor pin
+        - {{ pin_subpackage('libgdal', max_pin='x.x') }}
+    requirements:
+      build:
+        - cmake
+        # ranlib used at install time
+        - {{ compiler('c') }}
+        - {{ stdlib("c") }}
+        # libstdc++ is needed in requirements/run
+        - {{ compiler('cxx') }}
+        - pkg-config  # [not win]
+        - make  # [unix]
+        - ninja  # [win]
+      host:
+        - blosc
+        - cfitsio
+        - expat
+        - freexl
+        - geos
+        - geotiff
+        - giflib  # [not win]
+        - hdf4
+        - hdf5
+        - libjpeg-turbo
+        - json-c  # [not win]
+        - kealib
+        - lerc
+        - libarchive
+        - libaec
+        - libcurl
+        - libdeflate
+        - libiconv
+        - libkml
+        - libnetcdf
+        - libpng
+        - libpq
+        - libspatialite
+        - libtiff
+        - libuuid  # [linux]
+        - libwebp-base
+        - libxml2
+        - lz4-c
+        - openjpeg
+        - openssl
+        - pcre2
+        - poppler
+        - postgresql
+        - proj
+        # qhull disabled because of https://github.com/conda-forge/qgis-feedstock/issues/284#issuecomment-1356490896
+        # - qhull
+        - sqlite
+        - tiledb
+        - xerces-c
+        - xz
+        - zlib
+        - zstd
+      run:
+        - cfitsio
+        - geotiff
+        - giflib  # [not win]
+        - json-c  # [not win]
+        - libpq
+        - libspatialite
+        - libuuid  # [linux]
+        - libwebp-base
+        - poppler
+        - postgresql
+        - proj
+        - tiledb
+        - xz
+        - zstd
+    test:
+      files:
+        - test_data
+        - run_test.bat
+        - run_test.sh
+    about:
+      summary: The Geospatial Data Abstraction Library (GDAL)
+      license: MIT
+      license_file: LICENSE.TXT
 
-    mkdir -p build
-    cd build && emcmake cmake .. \
-      -DCMAKE_INSTALL_PREFIX=$WASM_LIBRARY_DIR \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DBUILD_SHARED_LIBS=True \
-      -DBUILD_APPS=OFF \
-      -DCMAKE_C_FLAGS="${SIDE_MODULE_CFLAGS} -Wno-deprecated-declarations -Wno-single-bit-bitfield-constant-conversion" \
-      -DCMAKE_CXX_FLAGS="${SIDE_MODULE_CFLAGS} -Wno-deprecated-declarations -Wno-single-bit-bitfield-constant-conversion" \
-      -DCMAKE_SHARED_LINKER_FLAGS="-sSIDE_MODULE=1 -sWASM_BIGINT" \
-      -DGDAL_USE_EXTERNAL_LIBS=OFF \
-      -DGDAL_USE_INTERNAL_LIBS=OFF \
-      \
-      -DPROJ_INCLUDE_DIR=$WASM_LIBRARY_DIR/include \
-      -DPROJ_LIBRARY=$WASM_LIBRARY_DIR/lib/libproj.a \
-      \
-      -DGDAL_USE_ICONV=ON \
-      -DIconv_INCLUDE_DIR=$WASM_LIBRARY_DIR/include \
-      -DIconv_LIBRARY=$WASM_LIBRARY_DIR/lib/libiconv.a \
-      \
-      -DGDAL_USE_TIFF=ON \
-      -DTIFF_INCLUDE_DIR=$WASM_LIBRARY_DIR/include \
-      -DTIFF_LIBRARY=$WASM_LIBRARY_DIR/lib/libtiff.a \
-      \
-      -DGDAL_USE_GEOS=ON \
-      -DGEOS_INCLUDE_DIR=$WASM_LIBRARY_DIR/include \
-      -DGEOS_LIBRARY=$WASM_LIBRARY_DIR/lib/libgeos.so \
-      \
-      -DGDAL_USE_ZLIB=ON \
-      -DZLIB_INCLUDE_DIR=$EMSCRIPTEN_INCLUDE \
-      -DZLIB_LIBRARY=$EMSCRIPTEN_LIB/libz.a \
-      \
-      -DGDAL_USE_PNG=ON \
-      -DPNG_PNG_INCLUDE_DIR=$EMSCRIPTEN_INCLUDE \
-      -DPNG_LIBRARY_RELEASE=$EMSCRIPTEN_LIB/libpng.a \
-      \
-      -DGDAL_USE_JPEG=ON \
-      -DJPEG_INCLUDE_DIR=$EMSCRIPTEN_INCLUDE \
-      -DJPEG_LIBRARY_RELEASE=$EMSCRIPTEN_LIB/libjpeg.a \
-      \
-      -DGDAL_USE_SQLITE3=ON \
-      -DSQLite3_INCLUDE_DIR=$EMSCRIPTEN_INCLUDE \
-      -DSQLite3_LIBRARY=$EMSCRIPTEN_LIB/libsqlite3.a \
-      -DACCEPT_MISSING_SQLITE3_MUTEX_ALLOC=ON \
-      \
-      -DGDAL_USE_GEOTIFF_INTERNAL=ON \
-      -DGDAL_USE_QHULL_INTERNAL=ON \
-      -DGDAL_USE_LERC_INTERNAL=ON \
-      -DGDAL_USE_JSONC_INTERNAL=ON \
-      -DGDAL_USE_PCRE2=OFF \
-      -DBUILD_TESTING=OFF \
-      -DBUILD_PYTHON_BINDINGS=OFF
+  - name: libgdal-arrow-parquet
+    script: build_arrow_parquet.sh  # [unix]
+    script: build_arrow_parquet.bat  # [win]
+    requirements:
+      build:
+        - cmake
+        # ranlib used at install time
+        - {{ compiler('c') }}
+        - {{ stdlib("c") }}
+        # libstdc++ is needed in requirements/run
+        - {{ compiler('cxx') }}
+        - pkg-config  # [not win]
+        - make  # [unix]
+        - ninja  # [win]
+      host:
+        - {{ pin_subpackage('libgdal', exact=True) }}
+        - blosc
+        - cfitsio
+        - curl
+        - expat
+        - freexl
+        - geos
+        - geotiff
+        - giflib  # [not win]
+        - hdf4
+        - hdf5
+        - libjpeg-turbo
+        - json-c  # [not win]
+        - kealib
+        - libarchive
+        - libarrow
+        # appease linter
+        {% if libarrow is undefined %}
+        {% set libarrow = "14" %}
+        {% endif %}
+        {% if libarrow.split(".")[0] | int >= 14 %}
+        - libarrow-dataset
+        - libparquet
+        {% endif %}
+        - libkml
+        - libnetcdf
+        - libpng
+        - libpq
+        - libspatialite
+        - libtiff
+        - libuuid  # [linux]
+        - libwebp-base
+        - libxml2
+        - openjpeg
+        - openssl
+        - pcre2
+        - poppler
+        - postgresql
+        - proj
+        - qhull
+        - sqlite
+        - tiledb
+        - xerces-c
+        - xz
+        - zlib
+        - zstd
+      run:
+        - {{ pin_subpackage('libgdal', exact=True) }}
+        - cfitsio
+        - geotiff
+        - giflib  # [not win]
+        - json-c  # [not win]
+        - libpq
+        - libspatialite
+        - libuuid  # [linux]
+        - libwebp-base
+        - poppler
+        - postgresql
+        - proj
+        - tiledb
+        - xz
+        - zstd
+    test:
+      files:
+        - test_arrow_parquet.sh   # [unix]
+        - test_arrow_parquet.bat  # [win]
+      commands:
+        - sh test_arrow_parquet.sh   # [unix]
+        - test_arrow_parquet.bat  # [win]
+    about:
+      summary: Arrow and Parquet drivers for the Geospatial Data Abstraction Library (GDAL)
+      license: MIT
+      license_file: LICENSE.TXT
 
-
-    # Note:
-    # CMake tries to link the same libraries multiple times at the final link time.
-    # This is probably because the same libraries are used in multiple submodules.
-    # This behavior is okay when those libraries are "shared" libraries,
-    # but we often build static libraries and linking static libraries
-    # multiple times results in a duplicated symbol error.
-    # I wasn't able to find a way to prevent CMake from emitting duplicated libraries.
-    # This is a hack which removes all duplicated appearances of static libs at the final link time.
-
-    export LINKLIBS=$(pwd)/CMakeFiles/GDAL.dir/link.txt
-    cat ${LINKLIBS} | grep -o '\S*' | grep "\.a$" | sort | uniq | tr "\n" " " > linked_static_libs.txt
-    cat ${LINKLIBS} | grep -o '\S*' | grep -v "\.a$" | tr "\n" " " > link_cmd.txt
-    cat link_cmd.txt > ${LINKLIBS}
-    cat linked_static_libs.txt >> ${LINKLIBS}
-
-    emmake make -j ${PYODIDE_JOBS:-16}
-    emmake make install
-
-    cp ${WASM_LIBRARY_DIR}/lib/libgdal.so ${DISTDIR}
-
-# Note: this package needs to be manually upgraded to the next version
+  - name: gdal
+    script: install_python.sh  # [unix]
+    script: install_python.bat  # [win]
+    build:
+      skip_compile_pyc:
+        - share/bash-completion/completions/*.py
+    requirements:
+      build:
+        - {{ compiler('c') }}
+        - {{ stdlib("c") }}
+        - {{ compiler('cxx') }}
+        - cmake
+        - make  # [unix]
+        - ninja  # [win]
+        - python                                 # [build_platform != target_platform]
+        - cross-python_{{ target_platform }}     # [build_platform != target_platform]
+        - numpy                                  # [build_platform != target_platform]
+        - swig
+      host:
+        - python
+        - pip
+        - numpy
+        - {{ pin_subpackage('libgdal', exact=True) }}
+        # Workaround to prevent run depending on "libgfortran5 9.3.0" despite "hdf5"
+        # having not been migrated yet causing conflicts with the "libgdal" output
+        # See: https://github.com/conda-forge/gdal-feedstock/pull/415
+        - hdf5
+        - libxml2
+        # Workaround to prevent conflicts seen in
+        #  https://github.com/conda-forge/gdal-feedstock/pull/543
+        - openssl
+      run:
+        - python
+        - {{ pin_compatible('numpy') }}
+        - {{ pin_subpackage('libgdal', exact=True) }}
+    test:
+      files:
+        - test_data
+        - extra_tests.py
+        - run_test.py
+        - test_script_exist.bat
+      imports:
+        - osgeo
+        - osgeo.ogr
+        - osgeo.gdal
+        - osgeo._gdal
+        - osgeo._gdalconst
+        - osgeo._ogr
+        - osgeo._osr
+      commands:
+        - python run_test.py
+        # Check Python-implemented GDAL utilities.
+        # A number of these utilities unexpectedly return an error value when
+        # called with --help, and are thus called with --version below.
+        # gdalattachpct.py is checked only for existence as it unexpectedly
+        # returns an error code on --version, too. For easier debugging, this
+        # existence check is performed in a separate .bat file on Windows.
+        # This existence check should be replaced by a regular call once
+        # behavior is fixed in GDAL itself.
+        - rgb2pct.py --help
+        - pct2rgb.py --help
+        # Both --help and --version seem to cause an error return value
+        - test -f $PREFIX/bin/gdalattachpct.py  # [unix]
+        - gdal_merge.py --help
+        - gdal2tiles.py --help
+        - gdal2xyz.py --help
+        - gdal_retile.py --help
+        - gdal_proximity.py --help
+        - gdal_polygonize.py --help
+        - gdal_sieve.py --version
+        - gdal_fillnodata.py --help
+        - gdalmove.py --version
+        - gdal_edit.py --help
+        - gdal_calc.py --help
+        - gdal_pansharpen.py --help
+        - gdalcompare.py --version
+        - ogrmerge.py --help
+        - ogr_layer_algebra.py --help
+        # Use separate .bat file for file existence check on Windows
+        - test_script_exist.bat  # [win]
+      about:
+        summary: Python wrapper for the Geospatial Data Abstraction Library (GDAL)
+        license: MIT
+        license_file: LICENSE.TXT
+about:
+  home: http://www.gdal.org
+  PyPI: https://pypi.org/project/gdal
+  summary: "GDAL: Geospatial Data Abstraction Library"
+  license: MIT
 extra:
   recipe-maintainers:
-    - jobovy
+    - PUT_YOUR_GITHUB_USERNAME_HERE
