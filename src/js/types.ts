@@ -8,6 +8,7 @@ import {
   type InternalPackageData,
   type PackageLoadMetadata,
 } from "./load-package";
+import { SnapshotConfig } from "./snapshot";
 
 export type TypedArray =
   | Int8Array
@@ -259,27 +260,8 @@ export interface FS {
   readFile(a: string): Uint8Array;
 }
 
-export interface EmscriptenSettings {
-  noImageDecoding?: boolean;
-  noAudioDecoding?: boolean;
-  noWasmDecoding?: boolean;
-  preRun: { (Module: Module): void }[];
-  quit?: (status: number, toThrow: Error) => void;
-  exited?: { status: number; toThrow: Error };
-  print?: (a: string) => void;
-  printErr?: (a: string) => void;
-  arguments?: string[];
-  instantiateWasm?: (
-    imports: { [key: string]: any },
-    successCallback: (
-      instance: WebAssembly.Instance,
-      module: WebAssembly.Module,
-    ) => void,
-  ) => void;
-  API?: API;
-  postRun?: ((a: Module) => void) | ((a: Module) => void)[];
-  locateFile?: (file: string) => string;
-}
+/** @private */
+export type PreRunFunc = (Module: Module) => void;
 
 export type ReadFileType = (path: string) => Uint8Array;
 
@@ -443,6 +425,10 @@ export interface API {
   sys: PyProxy;
   os: PyProxy;
 
-  finalizeBootstrap: (fromSnapshot?: boolean) => PyodideInterface;
+  restoreSnapshot(snapshot: Uint8Array): SnapshotConfig;
+  makeSnapshot(): Uint8Array;
+  saveSnapshot(): Uint8Array;
+  finalizeBootstrap: (fromSnapshot?: SnapshotConfig) => PyodideInterface;
+  syncUpSnapshotLoad3(conf: SnapshotConfig): void;
   version: string;
 }
